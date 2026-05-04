@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>x-memo — copy X/Twitter threads as Markdown</title>
+  <meta name="description" content="One bookmarklet. Copies any X/Twitter thread to your clipboard as clean Markdown with YAML frontmatter. No accounts. No extensions.">
+  <meta property="og:title" content="x-memo — copy X/Twitter threads as Markdown">
+  <meta property="og:description" content="One bookmarklet. Copies any X/Twitter thread to your clipboard as clean Markdown.">
+  <meta property="og:url" content="https://edgeof8.github.io/x-memo/">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0d1117;
+      color: #e6edf3;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3rem;
+      padding: 4rem 2rem 5rem;
+      text-align: center;
+    }
+
+    /* ── Hero ──────────────────────────────────────────────── */
+
+    .hero { display: flex; flex-direction: column; align-items: center; gap: 1rem; }
+
+    .brand {
+      font-size: 4rem;
+      font-weight: 800;
+      letter-spacing: -0.05em;
+      color: #1d9bf0;
+      text-shadow: 0 0 60px rgba(29, 155, 240, 0.35);
+    }
+
+    .tagline {
+      font-size: 1.2rem;
+      font-weight: 500;
+      color: #e6edf3;
+      max-width: 480px;
+      line-height: 1.5;
+    }
+
+    .sub-tagline { color: #6e7681; font-size: 0.92rem; }
+
+    /* ── Platform badge ────────────────────────────────────── */
+
+    .platforms { display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: center; }
+
+    .platform-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.3rem 0.8rem;
+      border-radius: 99px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      border: 1px solid;
+      letter-spacing: 0.01em;
+    }
+
+    .platform-badge.x { color: #1d9bf0; border-color: rgba(29,155,240,0.6); background: rgba(29,155,240,0.08); }
+
+    /* ── Before / After ────────────────────────────────────── */
+
+    .ba-section { width: 100%; max-width: 820px; text-align: left; }
+
+    .ba-eyebrow {
+      text-align: center;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: #484f58;
+      margin-bottom: 1.25rem;
+    }
+
+    .ba-grid {
+      display: grid;
+      grid-template-columns: 1fr 3rem 1fr;
+      align-items: stretch;
+    }
+
+    .ba-panel {
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .ba-panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.5rem 0.85rem;
+      background: #161b22;
+      border-bottom: 1px solid #30363d;
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      flex-shrink: 0;
+    }
+
+    .before-header { color: #6e7681; }
+    .after-header  { color: #1d9bf0; }
+
+    .ba-panel-header .pill {
+      padding: 0.1rem 0.45rem;
+      border-radius: 4px;
+      font-size: 0.65rem;
+      font-weight: 600;
+    }
+
+    .before-header .pill { background: rgba(248,81,73,0.15); color: #f85149; }
+    .after-header  .pill { background: rgba(29,155,240,0.15); color: #1d9bf0; }
+
+    .ba-content {
+      padding: 1rem;
+      font-family: "SF Mono", "Cascadia Code", "Fira Mono", monospace;
+      font-size: 0.73rem;
+      line-height: 1.7;
+      background: #0d1117;
+      flex: 1;
+    }
+
+    /* Before panel — simulated X thread */
+    .tweet       { margin-bottom: 0.9rem; padding-bottom: 0.9rem; border-bottom: 1px solid #1e2734; }
+    .tweet:last-child { border-bottom: none; margin-bottom: 0; }
+    .tweet-meta  { margin-bottom: 0.25rem; }
+    .tweet-name  { font-weight: 700; color: #e6edf3; font-family: -apple-system, sans-serif; font-size: 0.78rem; }
+    .tweet-handle{ color: #6e7681; font-size: 0.72rem; margin-left: 0.3rem; font-family: -apple-system, sans-serif; }
+    .tweet-time  { color: #484f58; font-size: 0.68rem; margin-left: 0.3rem; font-family: -apple-system, sans-serif; }
+    .tweet-text  { color: #8b949e; margin-bottom: 0.35rem; }
+    .tweet-stats { color: #484f58; font-size: 0.68rem; font-family: -apple-system, sans-serif; }
+
+    /* After panel — clean Markdown */
+    .md-fm   { color: #6e7681; }
+    .md-key  { color: #79c0ff; }
+    .md-val  { color: #a5d6ff; }
+    .md-h1   { color: #e6edf3; font-weight: 700; }
+    .md-bold { color: #e6edf3; font-weight: 700; }
+    .md-user { color: #79c0ff; }
+    .md-time { color: #6e7681; }
+    .md-text { color: #8b949e; }
+    .md-sep  { color: #30363d; margin: 0.35rem 0; }
+
+    /* Arrow between panels */
+    .ba-arrow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #1d9bf0;
+      font-size: 1.3rem;
+    }
+
+    @media (max-width: 620px) {
+      .ba-grid { grid-template-columns: 1fr; }
+      .ba-arrow { padding: 0.25rem 0; transform: rotate(90deg); }
+    }
+
+    /* ── Install ───────────────────────────────────────────── */
+
+    .install { display: flex; flex-direction: column; align-items: center; gap: 0.9rem; }
+
+    .label {
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #6e7681;
+    }
+
+    .bookmarklet {
+      display: inline-block;
+      padding: 0.85rem 2.25rem;
+      background: #0f6cbd;
+      color: #ffffff;
+      font-size: 1.1rem;
+      font-weight: 600;
+      border-radius: 8px;
+      text-decoration: none;
+      border: 1px solid #1d9bf0;
+      cursor: grab;
+      user-select: none;
+      transition: background 0.15s, box-shadow 0.15s, transform 0.1s;
+    }
+
+    .bookmarklet:hover {
+      background: #1d9bf0;
+      box-shadow: 0 0 28px rgba(29, 155, 240, 0.4);
+    }
+
+    .bookmarklet:active { cursor: grabbing; transform: scale(0.97); }
+
+    .drag-hint { font-size: 0.78rem; color: #484f58; margin-top: -0.25rem; }
+
+    .arrow {
+      font-size: 1.4rem;
+      animation: bounce 1.4s ease-in-out infinite;
+      color: #484f58;
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50%       { transform: translateY(-5px); }
+    }
+
+    .bookmarks-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 0.45rem 1rem;
+      font-size: 0.82rem;
+      color: #484f58;
+    }
+
+    .bookmarks-bar .slot {
+      color: #e6edf3;
+      background: #21262d;
+      border: 1px solid #30363d;
+      border-radius: 4px;
+      padding: 0.15rem 0.6rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    /* ── Divider / copy fallback ───────────────────────────── */
+
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      width: 100%;
+      max-width: 320px;
+      color: #484f58;
+      font-size: 0.78rem;
+    }
+
+    .divider::before, .divider::after {
+      content: '';
+      flex: 1;
+      border-top: 1px solid #21262d;
+    }
+
+    .copy-btn {
+      padding: 0.55rem 1.25rem;
+      background: transparent;
+      color: #8b949e;
+      font-size: 0.88rem;
+      border-radius: 8px;
+      border: 1px solid #30363d;
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+    }
+
+    .copy-btn:hover { color: #e6edf3; border-color: #8b949e; }
+    .copy-btn.copied { color: #1d9bf0; border-color: #1d9bf0; }
+
+    /* ── Footer ────────────────────────────────────────────── */
+
+    .footer { font-size: 0.82rem; color: #484f58; }
+    .footer a { color: #58a6ff; text-decoration: none; }
+    .footer a:hover { text-decoration: underline; }
+
+    .suite {
+      font-size: 0.8rem;
+      color: #484f58;
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .suite a { color: #6e7681; text-decoration: none; }
+    .suite a:hover { color: #e6edf3; }
+  </style>
+</head>
+<body>
+
+  <!-- Hero -->
+  <div class="hero">
+    <div class="brand">x-memo</div>
+    <p class="tagline">Copy any X/Twitter thread to your clipboard as clean&nbsp;Markdown.</p>
+    <p class="sub-tagline">One click. Full thread. Perfect Markdown. No accounts.</p>
+  </div>
+
+  <!-- Platform badge -->
+  <div class="platforms">
+    <span class="platform-badge x">X / Twitter</span>
+  </div>
+
+  <!-- Before / After -->
+  <div class="ba-section">
+    <p class="ba-eyebrow">What it does</p>
+    <div class="ba-grid">
+
+      <!-- Before -->
+      <div class="ba-panel">
+        <div class="ba-panel-header before-header">
+          Before <span class="pill">messy</span>
+        </div>
+        <div class="ba-content">
+          <div class="tweet">
+            <div class="tweet-meta">
+              <span class="tweet-name">Lex Fridman</span>
+              <span class="tweet-handle">@lexfridman</span>
+              <span class="tweet-time">· May 3</span>
+            </div>
+            <div class="tweet-text">The most important skill in the age of AI is knowing what questions to ask.</div>
+            <div class="tweet-stats">♥ 12.4K &nbsp; ↺ 2.1K &nbsp; 💬 891 &nbsp; 👁 1.2M</div>
+          </div>
+          <div class="tweet">
+            <div class="tweet-meta">
+              <span class="tweet-name">Lex Fridman</span>
+              <span class="tweet-handle">@lexfridman</span>
+            </div>
+            <div class="tweet-text">Not writing code. Not memorizing facts. Not any specific domain. The meta-skill of curiosity + precision.</div>
+            <div class="tweet-stats">♥ 8.7K &nbsp; ↺ 1.4K &nbsp; 💬 445</div>
+          </div>
+          <div class="tweet">
+            <div class="tweet-meta">
+              <span class="tweet-name">Lex Fridman</span>
+              <span class="tweet-handle">@lexfridman</span>
+            </div>
+            <div class="tweet-text">The people thriving right now aren't the ones who know the most. They're the ones who can direct intelligence toward the right problem.</div>
+            <div class="tweet-stats">♥ 21.1K &nbsp; ↺ 4.3K</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Arrow -->
+      <div class="ba-arrow">&#8594;</div>
+
+      <!-- After -->
+      <div class="ba-panel">
+        <div class="ba-panel-header after-header">
+          After <span class="pill">clean</span>
+        </div>
+        <div class="ba-content">
+          <div><span class="md-fm">---</span></div>
+          <div><span class="md-key">title:</span> <span class="md-val">"Thread by Lex Fridman"</span></div>
+          <div><span class="md-key">author:</span> <span class="md-val">"@lexfridman"</span></div>
+          <div><span class="md-key">source:</span> <span class="md-val">https://x.com/lex…</span></div>
+          <div><span class="md-key">clipped:</span> <span class="md-val">2026-05-03</span></div>
+          <div><span class="md-key">thread_length:</span> <span class="md-val">3</span></div>
+          <div><span class="md-fm">---</span></div>
+          <br>
+          <div><span class="md-h1"># Thread by Lex Fridman</span></div>
+          <br>
+          <div><span class="md-bold">**Lex Fridman**</span> <span class="md-user">@lexfridman</span> <span class="md-time">· May 3</span></div>
+          <br>
+          <div><span class="md-text">The most important skill in the age of AI is knowing what questions to ask.</span></div>
+          <br>
+          <div><span class="md-sep">---</span></div>
+          <br>
+          <div><span class="md-bold">**Lex Fridman**</span> <span class="md-user">@lexfridman</span></div>
+          <br>
+          <div><span class="md-text">Not writing code. Not memorizing facts…</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Install -->
+  <div class="install">
+    <div class="label">drag this to your bookmarks bar</div>
+    <a id="xmemo" class="bookmarklet" href="#">x-memo</a>
+    <div class="arrow">&#8595;</div>
+    <div class="bookmarks-bar">
+      &#128278; Bookmarks &nbsp;&nbsp; <span class="slot">x-memo</span> &nbsp;&nbsp; &#183;&#183;&#183;
+    </div>
+    <div class="drag-hint">then visit any X thread and click it</div>
+  </div>
+
+  <div class="divider">can't drag?</div>
+
+  <button class="copy-btn" id="copy-btn">Copy code — paste as bookmark URL</button>
+
+  <div class="suite">
+    Part of the Edge Toolkit:
+    <a href="https://edgeof8.github.io/bttn/">bttn</a> — AI chats &nbsp;·&nbsp;
+    <a href="https://edgeof8.github.io/md-memo/">md-memo</a> — articles &nbsp;·&nbsp;
+    <strong style="color:#1d9bf0">x-memo</strong> — threads
+  </div>
+
+  <p class="footer">
+    <a href="https://github.com/edgeof8/x-memo">GitHub</a>
+  </p>
+
+  <!-- single source of truth: CDN loader fetches x-memo.js fresh on each click -->
+  <script id="xmemo-code" type="text/plain">javascript:(function(){var s=document.createElement('script');s.src='https://edgeof8.github.io/x-memo/x-memo.js?v='+Date.now();document.body.appendChild(s);})();</script>
+
+  <script>
+    const code = document.getElementById('xmemo-code').textContent.trim();
+    document.getElementById('xmemo').href = code;
+
+    document.getElementById('copy-btn').addEventListener('click', async () => {
+      await navigator.clipboard.writeText(code);
+      const btn = document.getElementById('copy-btn');
+      btn.textContent = '✓ Copied';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.textContent = 'Copy code — paste as bookmark URL';
+        btn.classList.remove('copied');
+      }, 1500);
+    });
+  </script>
+
+</body>
+</html>
